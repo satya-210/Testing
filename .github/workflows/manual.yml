@@ -1,0 +1,104 @@
+name: GCP Gateway Certificate Expiration Check and Send Slack Alerts
+
+on:
+  schedule:
+    - cron: '30 13 * * 1'  # Runs every Monday at 7 PM IST (1:30 PM UTC)
+  workflow_dispatch:     # Allows manual triggering of the workflow
+
+jobs:
+  GCP_Certificate_Expiration:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [stage, prod]  # Define the environments
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          version: 'latest'
+
+      - name: Set environment variables
+        run: |
+          if [ "${{ matrix.env }}" == "stage" ]; then
+            echo "GCP_SERVICE_ACCOUNT_KEY=${{ secrets.GCP_SERVICE_ACCOUNT_KEY_STAGE }}" >> $GITHUB_ENV
+            echo "GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_STAGE }}" >> $GITHUB_ENV
+            echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL_STAGE }}" >> $GITHUB_ENV
+            echo "GCP_GATEWAY_CERTIFICATE_NAME=stage-gateway" >> $GITHUB_ENV
+          elif [ "${{ matrix.env }}" == "prod" ]; then
+            echo "GCP_SERVICE_ACCOUNT_KEY=${{ secrets.GCP_SERVICE_ACCOUNT_KEY_PROD }}" >> $GITHUB_ENV
+            echo "GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_PROD }}" >> $GITHUB_ENV
+            echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL_TEST }}" >> $GITHUB_ENV
+            echo "GCP_GATEWAY_CERTIFICATE_NAME=gateway-certs" >> $GITHUB_ENV
+          fi
+
+      - name: Authenticate to Google Cloud
+        run: |
+          echo "${{ env.GCP_SERVICE_ACCOUNT_KEY }}" | base64 --decode > $HOME/gcp-key.json
+          gcloud auth activate-service-account --key-file=$HOME/gcp-key.json
+          gcloud config set project ${{ env.GCP_PROJECT_ID }}
+
+      - name: Capitalize the environment name
+        run: |
+          environment=$(echo ${{ matrix.env }} | tr '[:lower:]' '[:upper:]')
+          echo "environment=${environment}" >> $GITHUB_ENV
+
+      - name: Check GCP Gateway Certificate Expiry
+        run: |
+          certificate_name="${{ env.GCP_GATEWAY_CERTIFICATE_NAME }}"
+          project_id="${{ env.GCP_PROJECT_ID }}"
+
+          # Fetch certificate expiration details from Certificate Manager
+          expiry_date=$(gcloud certificate-manager certificates describe "$certificate_name" \
+            --project="$project_id" --format="value(expireTime)")
+
+          # Convert the expiration date to epoch time
+          expiry_date_epoch=$(date -d "$expiry_date" +%s)
+          current_date_epoch=$(date +%s)
+
+          # Calculate how many days are left until the certificate expires
+          days_until_expiry=$(( (expiry_date_epoch - current_date_epoch) / 86400 ))
+          echo "Days until certificate expiry: $days_until_expiry"
+
+          # Define threshold in days (e.g., 30 days)
+          expiry_threshold=30
+
+          # Check if the certificate is expiring within the threshold
+          if [[ $days_until_expiry -le $expiry_threshold ]]; then
+            echo "The certificate $certificate_name will expire in $days_until_expiry days." >> certificate_expiry_alert.txt
+          else
+            echo "The certificate $certificate_name is valid for more than $expiry_threshold days."
+          fi
+
+      - name: Send Slack Alert if Certificate Expiration Detected
+        if: ${{ success() }}
+        run: |
+          send_slack_notification() {
+              local webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
+              local message=""
+
+              if [ -f certificate_expiry_alert.txt ]; then
+                  message=$(cat certificate_expiry_alert.txt)
+              fi
+
+              curl -X POST -H 'Content-type: application/json' --data "{
+                'text': 'GCP_GATEWAY_CERTIFICATE_EXPIRY_ALERT:\n\n$message'
+              }" $webhook_url
+          }
+          send_slack_notification
+
+      - name: Send alert to Slack on job failure
+        if: ${{ failure() }}
+        run: |
+          send_slack_notification() {
+              local webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
+              local message="The workflow GCP Gateway Certificate Expiry Check failed for ${{env.environment}} environment."
+              curl -X POST -H 'Content-type: application/json' --data "{
+                'text': 'GCP_GATEWAY_CERTIFICATE_EXPIRY_ALERT:\n\n$message'
+              }" $webhook_url
+          }
+          send_slack_notification
+
