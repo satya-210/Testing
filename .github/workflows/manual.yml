@@ -28,11 +28,7 @@ jobs:
             echo "GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_STAGE }}" >> $GITHUB_ENV
             echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL_STAGE }}" >> $GITHUB_ENV
             echo "GCP_GATEWAY_CERTIFICATE_NAME=stage-gateway" >> $GITHUB_ENV
-          elif [ "${{ matrix.env }}" == "prod" ]; then
-            echo "GCP_SERVICE_ACCOUNT_KEY=${{ secrets.GCP_SERVICE_ACCOUNT_KEY_PROD }}" >> $GITHUB_ENV
-            echo "GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_PROD }}" >> $GITHUB_ENV
-            echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL_TEST }}" >> $GITHUB_ENV
-            echo "GCP_GATEWAY_CERTIFICATE_NAME=gateway-certs" >> $GITHUB_ENV
+        
           fi
 
       - name: Authenticate to Google Cloud
