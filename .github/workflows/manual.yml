@@ -43,21 +43,18 @@ jobs:
           # Calculate how many days are left until the certificate expires
           days_until_expiry=$(( (expiry_date_epoch - current_date_epoch) / 86400 ))
           echo "Days until certificate expiry: $days_until_expiry"
+          
+          # Write details to file
+          echo "Certificate Name: $certificate_name" > certificate_expiry_alert.txt
+          echo "Expiry Date: $expiry_date" >> certificate_expiry_alert.txt
+          echo "Days Until Expiry: $days_until_expiry" >> certificate_expiry_alert.txt
+          
           # Define threshold in days (e.g., 30 days)
           expiry_threshold=260
           # Check if the certificate is expiring within the threshold
           if [[ $days_until_expiry -le $expiry_threshold ]]; then
             echo "The certificate $certificate_name will expire in $days_until_expiry days." >> certificate_expiry_alert.txt
-            EXPIRY_TIMESTAMP=$(date -d "$EXPIRY_DATE" +%s) && \  >> EXPIRY_TIMESTAMP.txt
-          CURRENT_TIMESTAMP=$(date +%s) && \
-          THRESHOLD_TIMESTAMP=$(($CURRENT_TIMESTAMP + 3000*24*60*60)) && \
-          DAYS_REMAINING=$(( (EXPIRY_TIMESTAMP - CURRENT_TIMESTAMP) / 86400 )) && \
-          echo "Expiry Date: $EXPIRY_DATE" && \
-          echo "Expiry Timestamp: $EXPIRY_TIMESTAMP" && \
-          echo "Current Timestamp: $CURRENT_TIMESTAMP" && \
-          echo "Threshold Timestamp: $THRESHOLD_TIMESTAMP" && \
-          echo "Days Remaining: $DAYS_REMAINING"
-
+         
           else
             echo "The certificate $certificate_name is valid for more than $expiry_threshold days."
           fi
