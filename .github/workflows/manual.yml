@@ -30,7 +30,7 @@ jobs:
           gcloud container clusters get-credentials venu-stage-k8s-01 --zone=us-east4 --project ${{ secrets.GCP_PROJECT_ID_STAGE }}
       - name: Check GCP Gateway Certificate Expiry using SSL certificates
         run: |
-          certificate_name="gateway-certs"
+          certificate_name="stage-gateway"
           project_id="${{ secrets.GCP_PROJECT_ID_STAGE }}"
 
           # Fetch certificate expiration details from SSL Certificate Manager
