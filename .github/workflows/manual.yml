@@ -28,13 +28,14 @@ jobs:
         run: |
           gcloud config set project ${{ secrets.GCP_PROJECT_ID_STAGE }}
           gcloud container clusters get-credentials venu-stage-k8s-01 --zone=us-east4 --project ${{ secrets.GCP_PROJECT_ID_STAGE }}
-      - name: Check GCP Gateway Certificate Expiry
+      - name: Check GCP Gateway Certificate Expiry using SSL certificates
         run: |
-          certificate_name="${{ env.GCP_GATEWAY_CERTIFICATE_NAME }}"
-          project_id="${{ env.GCP_PROJECT_ID }}"
-          # Fetch certificate expiration details from Certificate Manager
-          expiry_date=$(gcloud certificate-manager certificates describe "$certificate_name" \
-            --project="$project_id" --format="value(expireTime)")
+          certificate_name="gateway-certs"
+          project_id="${{ secrets.GCP_PROJECT_ID_STAGE }}"
+
+          # Fetch certificate expiration details from SSL Certificate Manager
+          expiry_date=$(gcloud compute ssl-certificates describe "$certificate_name" \
+            --global --format="value(expireTime)")
           # Convert the expiration date to epoch time
           expiry_date_epoch=$(date -d "$expiry_date" +%s)
           current_date_epoch=$(date +%s)
