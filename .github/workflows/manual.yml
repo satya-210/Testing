@@ -2,7 +2,7 @@ name: GCP Gateway Certificate Expiration Check and Send Slack Alerts
 on:
   workflow_dispatch:  # Allows manual trigger
 jobs:
-  fetch-secrets-and-check-cert-expiry:
+  GCP-Gateway-Certificate-Expiration-Check-and-Send-Slack-Alerts:
     runs-on: ubuntu-latest
     env:
       EXPIRY_THRESHOLD_DAYS: 3000  # Set the expiry threshold to 3000 days
@@ -43,7 +43,7 @@ jobs:
           days_until_expiry=$(( (expiry_date_epoch - current_date_epoch) / 86400 ))
           echo "Days until certificate expiry: $days_until_expiry"
           # Define threshold in days (e.g., 30 days)
-          expiry_threshold=30
+          expiry_threshold=260
           # Check if the certificate is expiring within the threshold
           if [[ $days_until_expiry -le $expiry_threshold ]]; then
             echo "The certificate $certificate_name will expire in $days_until_expiry days." >> certificate_expiry_alert.txt
