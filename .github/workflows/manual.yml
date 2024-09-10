@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       EXPIRY_THRESHOLD_DAYS: 3000  # Set the expiry threshold to 3000 days
-      GCP_GATEWAY_CERTIFICATE_NAME: "stage-gateway-cert"  # certificate name
+      GCP_GATEWAY_CERTIFICATE_NAME: "stage-gateway"  # certificate name
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}  # Webhook URL as secret
       GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID_STAGE }}  # Set project ID from secrets
     steps:
