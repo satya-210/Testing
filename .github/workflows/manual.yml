@@ -48,7 +48,7 @@ jobs:
           # Check if the certificate is expiring within the threshold
           if [[ $days_until_expiry -le $expiry_threshold ]]; then
             echo "The certificate $certificate_name will expire in $days_until_expiry days." >> certificate_expiry_alert.txt
-            EXPIRY_TIMESTAMP=$(date -d "$EXPIRY_DATE" +%s) && \
+            EXPIRY_TIMESTAMP=$(date -d "$EXPIRY_DATE" +%s) && \  >> EXPIRY_TIMESTAMP.txt
           CURRENT_TIMESTAMP=$(date +%s) && \
           THRESHOLD_TIMESTAMP=$(($CURRENT_TIMESTAMP + 3000*24*60*60)) && \
           DAYS_REMAINING=$(( (EXPIRY_TIMESTAMP - CURRENT_TIMESTAMP) / 86400 )) && \
