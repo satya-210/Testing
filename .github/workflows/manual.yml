@@ -16,12 +16,12 @@ jobs:
         id: auth
         uses: 'google-github-actions/auth@v2'
         with:
-          credentials_json: ${{ secrets.GCLOUD_SERVICE_ACCOUNT_KEY }}
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY_STAGE }}
 
       - name: Setting up Cloud SDK
         uses: 'google-github-actions/setup-gcloud@v2'
         with:
-          project_id: ${{ secrets.GCLOUD_STAGE_PROJECT_ID }}
+          project_id: ${{ secrets.GCP_PROJECT_ID_STAGE }}
 
       - name: Install gke-gcloud-auth-plugin
         run: |
@@ -29,8 +29,8 @@ jobs:
           
       - name: Authenticate kubectl
         run: |
-          gcloud config set project ${{ secrets.GCLOUD_STAGE_PROJECT_ID }}
-          gcloud container clusters get-credentials venu-stage-k8s-01 --zone=us-east4 --project ${{ secrets.GCLOUD_STAGE_PROJECT_ID }}
+          gcloud config set project ${{ secrets.GCP_PROJECT_ID_STAGE }}
+          gcloud container clusters get-credentials venu-stage-k8s-01 --zone=us-east4 --project ${{ secrets.GCP_PROJECT_ID_STAGE }}
       - name: Check GCP Gateway Certificate Expiry
         run: |
           certificate_name="${{ env.GCP_GATEWAY_CERTIFICATE_NAME }}"
