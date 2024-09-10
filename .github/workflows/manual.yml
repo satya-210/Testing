@@ -36,6 +36,7 @@ jobs:
           # Fetch certificate expiration details from SSL Certificate Manager
           expiry_date=$(gcloud compute ssl-certificates describe "$certificate_name" \
             --global --format="value(expireTime)")
+    
           # Convert the expiration date to epoch time
           expiry_date_epoch=$(date -d "$expiry_date" +%s)
           current_date_epoch=$(date +%s)
@@ -47,6 +48,16 @@ jobs:
           # Check if the certificate is expiring within the threshold
           if [[ $days_until_expiry -le $expiry_threshold ]]; then
             echo "The certificate $certificate_name will expire in $days_until_expiry days." >> certificate_expiry_alert.txt
+            EXPIRY_TIMESTAMP=$(date -d "$EXPIRY_DATE" +%s) && \
+          CURRENT_TIMESTAMP=$(date +%s) && \
+          THRESHOLD_TIMESTAMP=$(($CURRENT_TIMESTAMP + 3000*24*60*60)) && \
+          DAYS_REMAINING=$(( (EXPIRY_TIMESTAMP - CURRENT_TIMESTAMP) / 86400 )) && \
+          echo "Expiry Date: $EXPIRY_DATE" && \
+          echo "Expiry Timestamp: $EXPIRY_TIMESTAMP" && \
+          echo "Current Timestamp: $CURRENT_TIMESTAMP" && \
+          echo "Threshold Timestamp: $THRESHOLD_TIMESTAMP" && \
+          echo "Days Remaining: $DAYS_REMAINING"
+
           else
             echo "The certificate $certificate_name is valid for more than $expiry_threshold days."
           fi
