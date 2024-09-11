@@ -1,0 +1,107 @@
+name: GCP Gateway Certificate Expiration Check and Send Slack Alerts
+
+on:
+  workflow_dispatch:  # Allows manual trigger
+
+jobs:
+  GCP-Gateway-Certificate-Expiration-Check-and-Send-Slack-Alerts:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [stage, prod]  # Define environments
+
+    env:
+      EXPIRY_THRESHOLD_DAYS: 300  # Set the expiry threshold
+      GCP_GATEWAY_CERTIFICATE_NAME_STAGE: "stage-gateway"  # Certificate name for stage
+      GCP_GATEWAY_CERTIFICATE_NAME_PROD: "prod-gateway"  # Certificate name for prod
+      SLACK_WEBHOOK_URL_STAGE: ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}  # Webhook URL for stage
+      SLACK_WEBHOOK_URL_PROD: ${{ secrets.SLACK_WEBHOOK_URL_PROD }}  # Webhook URL for prod
+      GCP_PROJECT_ID_STAGE: ${{ secrets.GCP_PROJECT_ID_STAGE }}  # Project ID for stage
+      GCP_PROJECT_ID_PROD: ${{ secrets.GCP_PROJECT_ID_PROD }}  # Project ID for prod
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Google Auth
+        id: auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY_${{ matrix.environment | upper }} }}
+
+      - name: Setting up Cloud SDK
+        uses: 'google-github-actions/setup-gcloud@v2'
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID_${{ matrix.environment | upper }} }}
+
+      - name: Install gke-gcloud-auth-plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin
+
+      - name: Authenticate kubectl
+        run: |
+          gcloud config set project ${{ secrets.GCP_PROJECT_ID_${{ matrix.environment | upper }} }}
+          gcloud container clusters get-credentials venu-${{ matrix.environment }}-k8s-01 --zone=us-east4 --project ${{ secrets.GCP_PROJECT_ID_${{ matrix.environment | upper }} }}
+
+      - name: Check GCP Gateway Certificate Expiry using SSL certificates
+        run: |
+          if [ "${{ matrix.environment }}" == "stage" ]; then
+            certificate_name="${{ env.GCP_GATEWAY_CERTIFICATE_NAME_STAGE }}"
+          else
+            certificate_name="${{ env.GCP_GATEWAY_CERTIFICATE_NAME_PROD }}"
+          fi
+          project_id="${{ secrets.GCP_PROJECT_ID_${{ matrix.environment | upper }} }}"
+
+          # Fetch certificate expiration details from SSL Certificate Manager
+          expiry_date=$(gcloud compute ssl-certificates describe "$certificate_name" \
+            --global --format="value(expireTime)")
+
+          # Convert the expiration date to epoch time
+          expiry_date_epoch=$(date -d "$expiry_date" +%s)
+          current_date_epoch=$(date +%s)
+
+          # Calculate how many days are left until the certificate expires
+          days_until_expiry=$(( (expiry_date_epoch - current_date_epoch) / 86400 ))
+          echo "Days until certificate expiry: $days_until_expiry"
+
+          # Define threshold in days (e.g., 30 days)
+          expiry_threshold=300
+          # Check if the certificate is expiring within the threshold
+          if [[ $days_until_expiry -le $expiry_threshold ]]; then
+            echo "Certificate Name: $certificate_name" > certificate_expiry_alert.txt
+            echo "Expiry Date: $expiry_date" >> certificate_expiry_alert.txt
+            echo "Days Until Expiry: $days_until_expiry" >> certificate_expiry_alert.txt
+            echo "Environment: ${{ matrix.environment }}" >> certificate_expiry_alert.txt
+          else
+            echo "The certificate $certificate_name is valid for more than $expiry_threshold days."
+          fi
+
+      - name: Send Slack Alert if Certificate Expiration Detected
+        run: |
+          # Check if the certificate_expiry_alert.txt file exists
+          if [ -f certificate_expiry_alert.txt ]; then
+            # If file exists, send the Slack notification
+            message=$(cat certificate_expiry_alert.txt)
+            if [ "${{ matrix.environment }}" == "stage" ]; then
+              webhook_url="${{ env.SLACK_WEBHOOK_URL_STAGE }}"
+            else
+              webhook_url="${{ env.SLACK_WEBHOOK_URL_PROD }}"
+            fi
+            curl -X POST -H 'Content-type: application/json' --data "{
+              'text': 'GCP_GATEWAY_CERTIFICATE_EXPIRY_ALERT for ${{ matrix.environment }} environment:\n\n$message'
+            }" $webhook_url
+          else
+            echo "No certificate expiration detected for ${{ matrix.environment }}. No alert will be sent."
+          fi
+
+      - name: Send alert to Slack on job failure
+        if: ${{ failure() }}
+        run: |
+          if [ "${{ matrix.environment }}" == "stage" ]; then
+            webhook_url="${{ env.SLACK_WEBHOOK_URL_STAGE }}"
+          else
+            webhook_url="${{ env.SLACK_WEBHOOK_URL_PROD }}"
+          fi
+          curl -X POST -H 'Content-type: application/json' --data "{
+            'text': 'GCP_GATEWAY_CERTIFICATE_EXPIRY_ALERT:\n\nThe workflow GCP Gateway Certificate Expiry Check failed for ${{ matrix.environment }} environment.'
+          }" $webhook_url
