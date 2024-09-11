@@ -36,6 +36,10 @@ jobs:
           # Fetch certificate expiration details from SSL Certificate Manager
           expiry_date=$(gcloud compute ssl-certificates describe "$certificate_name" \
             --global --format="value(expireTime)")
+            
+          # Fetch the associated DNS names from SSL Certificate Manager
+          dns_names=$(gcloud compute ssl-certificates describe "$certificate_name" \
+            --global --format="value(managed.domains)")
     
           # Convert the expiration date to epoch time
           expiry_date_epoch=$(date -d "$expiry_date" +%s)
@@ -49,6 +53,7 @@ jobs:
           # Check if the certificate is expiring within the threshold
           if [[ $days_until_expiry -le $expiry_threshold ]]; then
             echo "Certificate Name: $certificate_name" > certificate_expiry_alert.txt
+            echo "*DNS Names*: $dns_names" >> certificate_expiry_alert.txt
             echo "Expiry Date: $expiry_date" >> certificate_expiry_alert.txt
             echo "Days Until Expiry: $days_until_expiry" >> certificate_expiry_alert.txt
           else
