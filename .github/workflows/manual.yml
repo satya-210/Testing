@@ -58,6 +58,7 @@ jobs:
             echo "*DNS Names*: $dns_names" >> certificate_expiry_alert.txt
           else
             echo "The certificate $certificate_name is valid for more than $expiry_threshold days."
+          fi  # <-- Missing fi added here
       - name: Send Slack Alert if Certificate Expiration Detected
         run: |
           # Check if the certificate_expiry_alert.txt file exists
