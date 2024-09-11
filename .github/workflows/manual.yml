@@ -1,6 +1,7 @@
 name: GCP Gateway Certificate Expiration Check and Send Slack Alerts
 on:
-  workflow_dispatch:  # Allows manual trigger
+  schedule:
+   - cron: '30 13 * * 1' # Runs every Monday at 7 PM IST (1:30 PM UTC)
 jobs:
   GCP-Gateway-Certificate-Expiration-Check-and-Send-Slack-Alerts:
     runs-on: ubuntu-latest
@@ -37,9 +38,12 @@ jobs:
           expiry_date=$(gcloud compute ssl-certificates describe "$certificate_name" \
             --global --format="value(expireTime)")
             
-          # Fetch the associated DNS names from SSL Certificate Manager
-          dns_names=$(gcloud compute ssl-certificates describe "$certificate_name" \
-            --global --format="value(managed.domains)")
+          # Retrieve and decode the certificate
+          certificate_data=$(kubectl get secrets "$certificate_name" -o=json | jq -r '.data."tls.crt"')
+            actual_cert=$(echo "$certificate_data" | base64 -d | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ {print; if (/END CERTIFICATE/) exit}')
+
+            # Extract the first domain from the certificate
+            dns=$(echo "$actual_cert" | openssl x509 -text -noout | awk '/DNS:/ {print $1; exit}' | sed -e 's/DNS://' -e 's/,$//' | grep -v localhost)
     
           # Convert the expiration date to epoch time
           expiry_date_epoch=$(date -d "$expiry_date" +%s)
@@ -53,7 +57,7 @@ jobs:
           # Check if the certificate is expiring within the threshold
           if [[ $days_until_expiry -le $expiry_threshold ]]; then
             echo "*Certificate Name*: $certificate_name" > certificate_expiry_alert.txt
-            echo "*DNS Names*: $dns_names" >> certificate_expiry_alert.txt
+            echo "*DNS Names*: $dns" >> certificate_expiry_alert.txt
             echo "*Expiry Date*: $expiry_date" >> certificate_expiry_alert.txt
             echo "*Days Until Expiry*: $days_until_expiry" >> certificate_expiry_alert.txt
           else
