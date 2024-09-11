@@ -58,7 +58,7 @@ jobs:
             echo "*DNS Names*: $dns_names" >> certificate_expiry_alert.txt
           else
             echo "The certificate $certificate_name is valid for more than $expiry_threshold days."
-          fi  # <-- Missing fi added here
+          fi  # Closing this if statement correctly
       - name: Send Slack Alert if Certificate Expiration Detected
         run: |
           # Check if the certificate_expiry_alert.txt file exists
@@ -70,9 +70,4 @@ jobs:
             }" "${{ env.SLACK_WEBHOOK_URL }}"
           else
             echo "No certificate expiration detected. No alert will be sent."
-      - name: Send alert to Slack on job failure
-        if: ${{ failure() }}
-        run: |
-          curl -X POST -H 'Content-type: application/json' --data "{
-            \"text\": \"GCP_GATEWAY_CERTIFICATE_EXPIRY_ALERT:\n\nThe workflow GCP Gateway Certificate Expiry Check failed for ${{env.environment}} environment.\"
-          }" "${{ env.SLACK_WEBHOOK_URL }}"
+         
