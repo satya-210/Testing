@@ -1,7 +1,6 @@
 name: GCP Gateway Certificate Expiration Check and Send Slack Alerts
 on:
-  schedule:
-   - cron: '30 13 * * 1' # Runs every Monday at 7 PM IST (1:30 PM UTC)
+  workflow_dispatch:  # Allows manual trigger
 jobs:
   GCP-Gateway-Certificate-Expiration-Check-and-Send-Slack-Alerts:
     runs-on: ubuntu-latest
