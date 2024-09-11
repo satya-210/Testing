@@ -30,7 +30,7 @@ jobs:
           gcloud container clusters get-credentials venu-stage-k8s-01 --zone=us-east4 --project ${{ secrets.GCP_PROJECT_ID_STAGE }}
       - name: Check GCP Gateway Certificate Expiry using SSL certificates
         run: |
-          certificate_name="stage-gateway"
+          certificate_name="${{ env.GCP_GATEWAY_CERTIFICATE_NAME }}"
           project_id="${{ secrets.GCP_PROJECT_ID_STAGE }}"
 
           # Fetch certificate expiration details from SSL Certificate Manager
@@ -48,38 +48,27 @@ jobs:
           expiry_threshold=30
           # Check if the certificate is expiring within the threshold
           if [[ $days_until_expiry -le $expiry_threshold ]]; then
-            echo "The certificate $certificate_name will expire in $days_until_expiry days." >> certificate_expiry_alert.txt
             echo "Certificate Name: $certificate_name" > certificate_expiry_alert.txt
             echo "Expiry Date: $expiry_date" >> certificate_expiry_alert.txt
             echo "Days Until Expiry: $days_until_expiry" >> certificate_expiry_alert.txt
           else
             echo "The certificate $certificate_name is valid for more than $expiry_threshold days."
-            
-           # Do not create alert file if certificate is not expiring within threshold
-            rm -f certificate_expiry_alert.txt
           fi
       - name: Send Slack Alert if Certificate Expiration Detected
-        if: ${{ success() }}
         run: |
-          send_slack_notification() {
-              local webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
-              local message=""
-              if [ -f certificate_expiry_alert.txt ]; then
-                  message=$(cat certificate_expiry_alert.txt)
-              fi
-              curl -X POST -H 'Content-type: application/json' --data "{
-                'text': 'GCP_GATEWAY_CERTIFICATE_EXPIRY_ALERT:\n\n$message'
-              }" $webhook_url
-          }
-          send_slack_notification
+          # Check if the certificate_expiry_alert.txt file exists
+          if [ -f certificate_expiry_alert.txt ]; then
+            # If file exists, send the Slack notification
+            message=$(cat certificate_expiry_alert.txt)
+            curl -X POST -H 'Content-type: application/json' --data "{
+              'text': 'GCP_GATEWAY_CERTIFICATE_EXPIRY_ALERT:\n\n$message'
+            }" "${{ env.SLACK_WEBHOOK_URL }}"
+          else
+            echo "No certificate expiration detected. No alert will be sent."
+          fi
       - name: Send alert to Slack on job failure
         if: ${{ failure() }}
         run: |
-          send_slack_notification() {
-              local webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
-              local message="The workflow GCP Gateway Certificate Expiry Check failed for ${{env.environment}} environment."
-              curl -X POST -H 'Content-type: application/json' --data "{
-                'text': 'GCP_GATEWAY_CERTIFICATE_EXPIRY_ALERT:\n\n$message'
-              }" $webhook_url
-          }
-          send_slack_notification
+          curl -X POST -H 'Content-type: application/json' --data "{
+            'text': 'GCP_GATEWAY_CERTIFICATE_EXPIRY_ALERT:\n\nThe workflow GCP Gateway Certificate Expiry Check failed for ${{env.environment}} environment.'
+          }" "${{ env.SLACK_WEBHOOK_URL }}"
