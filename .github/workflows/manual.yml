@@ -32,25 +32,18 @@ jobs:
         run: |
           certificate_name="${{ env.GCP_GATEWAY_CERTIFICATE_NAME }}"
           project_id="${{ secrets.GCP_PROJECT_ID_STAGE }}"
-
-          # Fetch certificate expiration details from SSL Certificate Manager
+          # Fetch certificate expiration details and DNS names from SSL Certificate Manager
           expiry_date=$(gcloud compute ssl-certificates describe "$certificate_name" \
             --global --format="value(expireTime)")
-            
-          # Retrieve and decode the certificate
-          certificate_data=$(kubectl get secrets "$certificate_name" -o=json | jq -r '.data."tls.crt"')
-            actual_cert=$(echo "$certificate_data" | base64 -d | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ {print; if (/END CERTIFICATE/) exit}')
-
-            # Extract the first domain from the certificate
-            dns=$(echo "$actual_cert" | openssl x509 -text -noout | awk '/DNS:/ {print $1; exit}' | sed -e 's/DNS://' -e 's/,$//' | grep -v localhost)
-    
+          dns=$(gcloud compute ssl-certificates describe "$certificate_name" \
+            --global --format="value(subjectAlternativeNames)")
           # Convert the expiration date to epoch time
           expiry_date_epoch=$(date -d "$expiry_date" +%s)
           current_date_epoch=$(date +%s)
           # Calculate how many days are left until the certificate expires
           days_until_expiry=$(( (expiry_date_epoch - current_date_epoch) / 86400 ))
           echo "Days until certificate expiry: $days_until_expiry"
-         
+          echo "DNS Names: $dns"
           # Define threshold in days (e.g., 30 days)
           expiry_threshold=300
           # Check if the certificate is expiring within the threshold
