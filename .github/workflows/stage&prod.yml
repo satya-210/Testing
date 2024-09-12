@@ -78,3 +78,10 @@ jobs:
           else
             echo "No alert to send for ${{ matrix.environment }}."
           fi
+       # Send alert to Slack on job failure
+      - name: Send alert to Slack on job failure
+        if: failure()
+        run: |
+          curl -X POST -H 'Content-type: application/json' --data "{
+            'text': 'GCP_GATEWAY_CERTIFICATE_EXPIRY_ALERT:\n\nThe workflow for ${{ matrix.environment }} failed.'
+          }" "${{ env.SLACK_WEBHOOK_URL }}"
