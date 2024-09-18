@@ -1,6 +1,8 @@
 name: GCP Gateway Certificate Expiration Check and Send Slack Alerts
 on:
-  workflow_dispatch:  # Allows manual trigger
+  schedule:
+    - cron: '30 13 * * 1'  # Runs every Monday at 7 PM IST (1:30 PM UTC)
+  workflow_dispatch:     # Allows manual triggering of the workflow
 jobs:
   GCP-Gateway-Certificate-Expiration-Check:
     runs-on: ubuntu-latest
@@ -8,7 +10,7 @@ jobs:
       matrix:
         environment: [stage, prod]
     env:
-      EXPIRY_THRESHOLD_DAYS: 300  # Set the expiry threshold to 300 days
+      EXPIRY_THRESHOLD_DAYS: 30  # Set the expiry threshold to 30 days
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
