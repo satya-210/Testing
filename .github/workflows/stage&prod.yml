@@ -10,7 +10,7 @@ jobs:
       matrix:
         environment: [stage, prod]
     env:
-      EXPIRY_THRESHOLD_DAYS: 300  # Set the expiry threshold to 300 days
+      EXPIRY_THRESHOLD_DAYS: 30  # Set the expiry threshold to 30 days
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
