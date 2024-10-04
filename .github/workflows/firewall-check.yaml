@@ -35,7 +35,7 @@ jobs:
           gcloud container clusters get-credentials venu-stage-k8s-01 --zone=us-east4 --project ${{ secrets.GCP_PROJECT_ID_STAGE }}
 
       # Firewall rule check section
-     - name: List firewall rules in GCP and check for open rules
+      - name: List firewall rules in GCP and check for open rules
   id: firewall-rules
   run: |
     # Fetch firewall rules and filter those that allow 0.0.0.0/0 or all ports
