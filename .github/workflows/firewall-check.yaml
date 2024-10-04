@@ -58,6 +58,4 @@ jobs:
       - name: Send Slack Alert if insecure rules are found
         if: env.insecure_rules != '0'
         run: |
-          curl -X POST -H 'Content-type: application/json' --data '{
-            "text": "🚨 *GCP Firewall Alert*: There are firewall rules that allow connections on all ports or from 0.0.0.0/0.\nCheck these rules: ```'$(cat insecure-rules.json)'```"
-          }' ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
+         curl -X POST -H "Content-type: application/json" --data "{\"text\": \"🚨 *GCP Firewall Alert*: There are firewall rules that allow connections on all ports or from 0.0.0.0/0.\\nCheck these rules: \`\`\`$(cat insecure-rules.json)\`\`\`\"}" ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
