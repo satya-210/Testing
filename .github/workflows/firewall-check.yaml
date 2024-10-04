@@ -1,0 +1,55 @@
+name: GCP Firewall and GKE Authentication Check
+
+on:
+  workflow_dispatch:  # Allows manual trigger
+
+jobs:
+  check-firewall:
+    runs-on: ubuntu-latest
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}  # Webhook URL as secret
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID_STAGE }}  # Set project ID from secrets
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Google Auth
+        id: auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY_STAGE }}
+
+      - name: Setting up Cloud SDK
+        uses: 'google-github-actions/setup-gcloud@v2'
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID_STAGE }}
+
+      - name: Install gke-gcloud-auth-plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin
+
+      - name: Authenticate kubectl
+        run: |
+          gcloud config set project ${{ secrets.GCP_PROJECT_ID_STAGE }}
+          gcloud container clusters get-credentials venu-stage-k8s-01 --zone=us-east4 --project ${{ secrets.GCP_PROJECT_ID_STAGE }}
+
+      # Firewall rule check section
+      - name: List firewall rules in GCP
+        id: firewall-rules
+        run: |
+          # Fetch firewall rules and filter those that allow 0.0.0.0/0 or all ports
+          gcloud compute firewall-rules list --format=json | jq '[.[] | select((.sourceRanges | index("0.0.0.0/0")) or (.allowed[].ports | contains(["all"])))]' > firewall-rules.json
+
+      - name: Check if any insecure firewall rules exist
+        id: check-insecure-rules
+        run: |
+          INSECURE_RULES=$(cat firewall-rules.json | jq '. | length')
+          echo "insecure_rules=$INSECURE_RULES" >> $GITHUB_ENV
+
+      - name: Send Slack Alert if insecure rules are found
+        if: env.insecure_rules != '0'
+        run: |
+          curl -X POST -H 'Content-type: application/json' --data '{
+            "text": "🚨 *GCP Firewall Alert*: There are firewall rules that allow connections on all ports or from 0.0.0.0/0.\nCheck these rules: ```'$(cat firewall-rules.json)'```"
+          }' ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}
