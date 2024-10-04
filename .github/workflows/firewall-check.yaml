@@ -7,7 +7,7 @@ jobs:
   check-firewall:
     runs-on: ubuntu-latest
     env:
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}  # Webhook URL as secret
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}  # Webhook URL as secret
       GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID_STAGE }}  # Set project ID from secrets
 
     steps:
@@ -52,4 +52,4 @@ jobs:
         run: |
           curl -X POST -H 'Content-type: application/json' --data '{
             "text": "🚨 *GCP Firewall Alert*: There are firewall rules that allow connections on all ports or from 0.0.0.0/0.\nCheck these rules: ```'$(cat firewall-rules.json)'```"
-          }' ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}
+          }' ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
