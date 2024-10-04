@@ -35,17 +35,26 @@ jobs:
           gcloud container clusters get-credentials venu-stage-k8s-01 --zone=us-east4 --project ${{ secrets.GCP_PROJECT_ID_STAGE }}
 
       # Firewall rule check section
-      - name: List firewall rules in GCP
-        id: firewall-rules
-        run: |
-          # Fetch firewall rules and filter those that allow 0.0.0.0/0 or all ports
-          gcloud compute firewall-rules list --format=json | jq '[.[] | select((.sourceRanges | index("0.0.0.0/0")) or (.allowed[].ports | contains(["all"])))]' > firewall-rules.json
+     - name: List firewall rules in GCP and check for open rules
+  id: firewall-rules
+  run: |
+    # Fetch firewall rules and filter those that allow 0.0.0.0/0 or all ports
+    gcloud compute firewall-rules list --format=json > firewall-rules.json
 
-      - name: Check if any insecure firewall rules exist
-        id: check-insecure-rules
-        run: |
-          INSECURE_RULES=$(cat firewall-rules.json | jq '. | length')
-          echo "insecure_rules=$INSECURE_RULES" >> $GITHUB_ENV
+    # Check if any rules were returned
+    if [[ ! -s firewall-rules.json ]]; then
+      echo "No firewall rules found or empty response."
+      exit 0
+    fi
+
+    # Process the firewall rules to find any that allow 0.0.0.0/0 or open all ports
+    jq '[.[] | select((.sourceRanges | index("0.0.0.0/0")? // false) or (.allowed[]?.ports? // [] | contains(["all"])))]' firewall-rules.json > insecure-rules.json
+
+    # Check if insecure rules were found
+    INSECURE_RULES=$(cat insecure-rules.json | jq '. | length')
+    echo "Found $INSECURE_RULES insecure firewall rules."
+    echo "insecure_rules=$INSECURE_RULES" >> $GITHUB_ENV
+
 
       - name: Send Slack Alert if insecure rules are found
         if: env.insecure_rules != '0'
