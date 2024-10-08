@@ -19,14 +19,14 @@ jobs:
           if [[ "${{ matrix.environment }}" == "stage" ]]; then
             echo "Setting environment variables for stage..."
             echo "GCP_GATEWAY_CERTIFICATE_NAME=stage-gateway" >> $GITHUB_ENV
-            echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL_STAGE }}" >> $GITHUB_ENV
+            echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL_SATYA }}" >> $GITHUB_ENV
             echo "GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_STAGE }}" >> $GITHUB_ENV
             echo "K8S_CLUSTER_NAME=venu-stage-k8s-01" >> $GITHUB_ENV
             echo "K8S_ZONE=us-east4" >> $GITHUB_ENV
           elif [[ "${{ matrix.environment }}" == "prod" ]]; then
             echo "Setting environment variables for prod..."
             echo "GCP_GATEWAY_CERTIFICATE_NAME=gateway-certs" >> $GITHUB_ENV
-            echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL_PROD }}" >> $GITHUB_ENV
+            echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL_SATYA }}" >> $GITHUB_ENV
             echo "GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_PROD }}" >> $GITHUB_ENV
             echo "K8S_CLUSTER_NAME=venu-prod-k8s" >> $GITHUB_ENV
             echo "K8S_ZONE=us-east4" >> $GITHUB_ENV
