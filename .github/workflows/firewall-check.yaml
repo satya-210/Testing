@@ -1,4 +1,4 @@
-name: GCP Firewall and GKE Authentication Check
+name: GCP Firewall Check
 
 on:
   workflow_dispatch:  # Allows manual trigger
@@ -58,4 +58,8 @@ jobs:
       - name: Send Slack Alert if insecure rules are found
         if: env.insecure_rules != '0'
         run: |
-         curl -X POST -H "Content-type: application/json" --data "{\"text\": \"🚨 *GCP Firewall Alert*: There are firewall rules that allow connections on all ports or from 0.0.0.0/0.\\nCheck these rules: \`\`\`$(cat insecure-rules.json)\`\`\`\"}" ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
+          # Read and escape the contents of insecure-rules.json for Slack payload
+          INSECURE_RULES=$(jq -Rs '.' < insecure-rules.json)
+          
+          # Send Slack alert with the rules
+          curl -X POST -H "Content-type: application/json" --data "{\"text\": \"🚨 *GCP Firewall Alert*: There are firewall rules that allow connections on all ports or from 0.0.0.0/0.\\nCheck these rules: \`\`\`$INSECURE_RULES\`\`\`\"}" ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
