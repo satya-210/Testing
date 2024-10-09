@@ -58,8 +58,11 @@ jobs:
       - name: Send Slack Alert if insecure rules are found
         if: env.insecure_rules != '0'
         run: |
-          # Read and escape the contents of insecure-rules.json for Slack payload
-          INSECURE_RULES=$(jq -Rs '.' < insecure-rules.json)
+          # Read and escape the contents of insecure-rules.json for Slack payload, then limit the length
+          INSECURE_RULES=$(jq -Rs '.' < insecure-rules.json | cut -c 1-1000)
+
+          # Debug: Print the content that will be sent to Slack
+          echo "Escaped Insecure Rules for Slack: $INSECURE_RULES"
           
-          # Send Slack alert with the rules
-          curl -X POST -H "Content-type: application/json" --data "{\"text\": \"🚨 *GCP Firewall Alert*: There are firewall rules that allow connections on all ports or from 0.0.0.0/0.\\nCheck these rules: \`\`\`$INSECURE_RULES\`\`\`\"}" ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
+          # Send Slack alert with the rules (truncated if necessary)
+          curl -X POST -H "Content-type: application/json" --data "{\"text\": \"🚨 *GCP Firewall Alert*: There are firewall rules that allow connections on all ports or from 0.0.0.0/0.\\nCheck these rules (truncated): \`\`\`$INSECURE_RULES\`\`\`\"}" ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
