@@ -35,37 +35,53 @@ jobs:
           gcloud container clusters get-credentials venu-stage-k8s-01 --zone=us-east4 --project ${{ secrets.GCP_PROJECT_ID_STAGE }}
 
       # Firewall rule check section
-      - name: List firewall rules in GCP and check for open rules
-        id: firewall-rules
+      - name: Check GCP Firewall Rules for Publicly Open Ports
         run: |
-          # Fetch firewall rules and filter those that allow 0.0.0.0/0 or all ports
-          gcloud compute firewall-rules list --format=json > firewall-rules.json
+          # Fetch all firewall rules
+          echo "Fetching firewall rules for project: $GCP_PROJECT_ID..."
+          firewall_rules=$(gcloud compute firewall-rules list --format="json") || { echo "Unable to fetch firewall rules." ; exit 1; }
 
-          # Check if any rules were returned
-          if [[ ! -s firewall-rules.json ]]; then
-            echo "No firewall rules found or empty response."
-            exit 0
+          # Filter rules that allow 0.0.0.0/0 access and have open ports
+          echo "Checking for publicly open ports..."
+          open_ports=0
+
+          # Iterate over each rule
+          for rule in $(echo "$firewall_rules" | jq -r '.[] | @base64'); do
+              _jq() {
+                  echo "${rule}" | base64 --decode | jq -r "${1}"
+              }
+
+              # Check if the rule allows public access (0.0.0.0/0)
+              allowed_ip_ranges=$(_jq '.sourceRanges[]')
+              if echo "$allowed_ip_ranges" | grep -q "0.0.0.0/0"; then
+                  rule_name=$(_jq '.name')
+                  rule_description=$(_jq '.description' 2>/dev/null)  # Get description
+                  allowed_ports=$(_jq '.allowed[].ports[]' 2>/dev/null)
+
+                  # If ports are allowed, print the rule, description, and the ports
+                  if [ ! -z "$allowed_ports" ]; then
+                      echo "Rule '$rule_name' allows public access to ports: $allowed_ports"
+                      if [ ! -z "$rule_description" ]; then
+                          echo "Description: $rule_description"
+                      else
+                          echo "Description: No description provided"
+                      fi
+                      open_ports=1
+                  fi
+              fi
+          done
+
+          # Final check
+          if [ "$open_ports" -eq 0 ]; then
+              echo "No publicly open ports found."
+              echo "insecure_rules=0" >> $GITHUB_ENV
+          else
+              echo "Publicly open ports found."
+              echo "insecure_rules=1" >> $GITHUB_ENV
           fi
-
-          # Process the firewall rules to find any that allow 0.0.0.0/0 or open all ports
-          jq '[.[] | select((.sourceRanges | index("0.0.0.0/0")? // false) or (.allowed[]?.ports? // [] | contains(["all"])))]' firewall-rules.json > insecure-rules.json
-
-          # Check if insecure rules were found
-          INSECURE_RULES=$(cat insecure-rules.json | jq '. | length')
-          echo "Found $INSECURE_RULES insecure firewall rules."
-          echo "insecure_rules=$INSECURE_RULES" >> $GITHUB_ENV
 
       - name: Send Slack Alert if insecure rules are found
         if: env.insecure_rules != '0'
         run: |
-          # Truncate and escape firewall rules in a safe manner, limiting the number of rules
-          INSECURE_RULES=$(jq '.[0:5]' insecure-rules.json)  # Limit to the first 5 rules for readability
-
-          # Escape special characters for Slack formatting
-          ESCAPED_RULES=$(echo "$INSECURE_RULES" | jq -Rsa .)
-
-          # Debug: Print the content that will be sent to Slack
-          echo "Escaped Insecure Rules for Slack: $ESCAPED_RULES"
-          
-          # Send Slack alert with the rules (limited to first 5 rules for now)
-          curl -X POST -H "Content-type: application/json" --data "{\"text\": \"🚨 *GCP Firewall Alert*: There are firewall rules that allow connections on all ports or from 0.0.0.0/0.\\nCheck these rules (limited): \`\`\`$ESCAPED_RULES\`\`\`\"}" ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
+          # Send Slack alert if publicly open ports were found
+          curl -X POST -H "Content-type: application/json" --data "{\"text\": \"🚨 *GCP Firewall Alert*: Publicly open firewall ports found for project $GCP_PROJECT_ID. Please review your firewall settings.\"}" ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
