@@ -62,7 +62,9 @@ jobs:
 
                   # If ports are allowed, append rule details to Slack message
                   if [ ! -z "$allowed_ports" ]; then
-                      alert_message="${alert_message}\\n*Rule*: $rule_name\\n*Ports*: $allowed_ports\\n*Description*: $rule_description\\n"
+                      # Escape any special characters in the description
+                      escaped_description=$(echo "$rule_description" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\n/\\n/g; s/\r//g')
+                      alert_message="${alert_message}\\n*Rule*: $rule_name\\n*Ports*: $allowed_ports\\n*Description*: $escaped_description\\n"
                       open_ports=1
                   fi
               fi
@@ -81,4 +83,8 @@ jobs:
       - name: Send Slack Alert if insecure rules are found
         if: env.insecure_rules != '0'
         run: |
+          # Truncate alert message to the first 4000 characters to ensure it fits in Slack
+          if [ "${#alert_message}" -gt 4000 ]; then
+              alert_message="${alert_message:0:4000}... [Message truncated]"
+          fi
           curl -X POST -H "Content-type: application/json" --data "{\"text\": \"$alert_message\"}" ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
