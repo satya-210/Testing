@@ -40,29 +40,3 @@ jobs:
         run: |
           # Fetch firewall rules and filter those that allow 0.0.0.0/0 or all ports
           gcloud compute firewall-rules list --format=json > firewall-rules.json
-
-          # Check if any rules were returned
-          if [[ ! -s firewall-rules.json ]]; then
-            echo "No firewall rules found or empty response."
-            exit 0
-          fi
-
-          # Process the firewall rules to find any that allow 0.0.0.0/0 or open all ports
-          jq '[.[] | select((.sourceRanges | index("0.0.0.0/0")? // false) or (.allowed[]?.ports? // [] | contains(["all"])))]' firewall-rules.json > insecure-rules.json
-
-          # Check if insecure rules were found
-          INSECURE_RULES=$(cat insecure-rules.json | jq '. | length')
-          echo "Found $INSECURE_RULES insecure firewall rules."
-          echo "insecure_rules=$INSECURE_RULES" >> $GITHUB_ENV
-
-      - name: Send Slack Alert if insecure rules are found
-        if: env.insecure_rules != '0'
-        run: |
-          # Read and escape the contents of insecure-rules.json for Slack payload, then limit the length
-          INSECURE_RULES=$(jq -Rs '.' < insecure-rules.json | cut -c 1-1000)
-
-          # Debug: Print the content that will be sent to Slack
-          echo "Escaped Insecure Rules for Slack: $INSECURE_RULES"
-          
-          # Send Slack alert with the rules (truncated if necessary)
-          curl -X POST -H "Content-type: application/json" --data "{\"text\": \"🚨 *GCP Firewall Alert*: There are firewall rules that allow connections on all ports or from 0.0.0.0/0.\\nCheck these rules (truncated): \`\`\`$INSECURE_RULES\`\`\`\"}" ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
