@@ -73,12 +73,13 @@ jobs:
           # Final check
           if [ "$open_ports" -eq 0 ]; then
               echo "No publicly open ports found."
-              echo "insecure_rules=0" >> $GITHUB_ENV
           else
               echo "Publicly open ports found."
-              echo "insecure_rules=1" >> $GITHUB_ENV
-              echo "alert_message=$alert_message" >> $GITHUB_ENV  # Pass the message to the next step
           fi
+
+          # Export alert message to be used in the next step directly
+          echo "alert_message=$alert_message" >> $GITHUB_ENV  # Pass the message to the next step
+          echo "insecure_rules=$open_ports" >> $GITHUB_ENV
 
       - name: Send Slack Alert if insecure rules are found
         if: env.insecure_rules != '0'
@@ -87,4 +88,5 @@ jobs:
           if [ "${#alert_message}" -gt 4000 ]; then
               alert_message="${alert_message:0:4000}... [Message truncated]"
           fi
+          # Send the alert message to Slack
           curl -X POST -H "Content-type: application/json" --data "{\"text\": \"$alert_message\"}" ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
