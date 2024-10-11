@@ -76,7 +76,7 @@ jobs:
               echo "No publicly open ports found."
               echo "insecure_rules=0" >> $GITHUB_ENV
               alert_message="✅ No publicly open firewall ports were found for project $GCP_PROJECT_ID."
-          else:
+          else
               echo "Publicly open ports found."
               echo "insecure_rules=1" >> $GITHUB_ENV
 
@@ -87,17 +87,5 @@ jobs:
       - name: Send Slack Alert if insecure rules are found
         if: env.insecure_rules != '0'
         run: |
-          alert_message=$(cat alert_message.txt)
-          # Send the message to Slack with proper escaping for newlines
-          curl -X POST -H "Content-type: application/json" \
-          --data "{\"text\": \"$(echo "$alert_message" | jq -R .)\"}" \
-          ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
+          curl -X POST -H "Content-type: application/json" --data "{\"text\": \"$(cat alert_message.txt)\"}" ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
 
-      - name: Send Slack notification if no issues were found
-        if: env.insecure_rules == '0'
-        run: |
-          alert_message=$(cat alert_message.txt)
-          # Send the message to Slack with proper escaping for newlines
-          curl -X POST -H "Content-type: application/json" \
-          --data "{\"text\": \"$(echo "$alert_message" | jq -R .)\"}" \
-          ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
