@@ -52,12 +52,16 @@ jobs:
 
           # Iterate over each rule
           for rule in $(echo "$firewall_rules" | jq -r '.[] | @base64'); do
-              # Check if the rule allows public access (0.0.0.0/0)
+              echo "Processing rule..."  # Debug line
               allowed_ip_ranges=$(_jq "$rule" '.sourceRanges[]' 2>/dev/null)
+              echo "Allowed IP ranges: $allowed_ip_ranges"  # Debug line
               if echo "$allowed_ip_ranges" | grep -q "0.0.0.0/0"; then
                   rule_name=$(_jq "$rule" '.name')
                   rule_description=$(_jq "$rule" '.description' 2>/dev/null || echo "(No description provided)")
                   allowed_ports=$(_jq "$rule" '.allowed[].ports[]' 2>/dev/null || echo "No ports defined")
+
+                  # Log rule details for debugging
+                  echo "Found public rule: $rule_name with open ports: $allowed_ports"  # Debug line
 
                   # Append rule details to the alert message
                   alert_message+="*Rule:* $rule_name\n"
