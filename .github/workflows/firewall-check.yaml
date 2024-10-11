@@ -79,6 +79,7 @@ jobs:
           else
               echo "Publicly open ports found."
               echo "insecure_rules=1" >> $GITHUB_ENV
+          fi  # This line was missing
 
           # Send the detailed alert message
           echo "Alert message to be sent: $alert_message"
@@ -88,4 +89,3 @@ jobs:
         if: env.insecure_rules != '0'
         run: |
           curl -X POST -H "Content-type: application/json" --data "{\"text\": \"$(cat alert_message.txt)\"}" ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
-
