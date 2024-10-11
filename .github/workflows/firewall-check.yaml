@@ -79,7 +79,7 @@ jobs:
           else
               echo "Publicly open ports found."
               echo "insecure_rules=1" >> $GITHUB_ENV
-          fi  # This line was missing
+          fi  # Closing the if condition
 
           # Send the detailed alert message
           echo "Alert message to be sent: $alert_message"
@@ -88,4 +88,7 @@ jobs:
       - name: Send Slack Alert if insecure rules are found
         if: env.insecure_rules != '0'
         run: |
-          curl -X POST -H "Content-type: application/json" --data "{\"text\": \"$(cat alert_message.txt)\"}" ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
+          # Escape newlines and quotes in the alert message
+          sanitized_message=$(cat alert_message.txt | jq -Rs '.')
+          # Send the alert to Slack
+          curl -X POST -H "Content-type: application/json" --data "{\"text\": $sanitized_message}" ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
