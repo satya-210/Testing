@@ -43,7 +43,7 @@ jobs:
           # Filter rules that allow 0.0.0.0/0 access and have open ports
           echo "Checking for publicly open ports..."
           open_ports=0
-          alert_message="🚨 *GCP Firewall Alert*: Publicly open firewall ports found for project $GCP_PROJECT_ID:\n"
+          alert_message="🚨 *GCP Firewall Alert*: Publicly open firewall ports found for project $GCP_PROJECT_ID:\n\n"
 
           # Function to decode base64 and parse JSON
           _jq() {
@@ -75,20 +75,29 @@ jobs:
           if [ "$open_ports" -eq 0 ]; then
               echo "No publicly open ports found."
               echo "insecure_rules=0" >> $GITHUB_ENV
-          else
+              alert_message="✅ No publicly open firewall ports were found for project $GCP_PROJECT_ID."
+          else:
               echo "Publicly open ports found."
               echo "insecure_rules=1" >> $GITHUB_ENV
-              # Send the detailed alert message
-              echo "$alert_message"
-          fi
+
+          # Send the detailed alert message
+          echo "Alert message to be sent: $alert_message"
+          echo "$alert_message" > alert_message.txt  # Save the alert message for later steps
 
       - name: Send Slack Alert if insecure rules are found
         if: env.insecure_rules != '0'
         run: |
-          # Debugging: Print the message before sending it
-          echo "Message to be sent: $alert_message"
-          
-          # Send the message to Slack
+          alert_message=$(cat alert_message.txt)
+          # Send the message to Slack with proper escaping for newlines
           curl -X POST -H "Content-type: application/json" \
-          --data "{\"text\": \"$alert_message\"}" \
+          --data "{\"text\": \"$(echo "$alert_message" | jq -R .)\"}" \
+          ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
+
+      - name: Send Slack notification if no issues were found
+        if: env.insecure_rules == '0'
+        run: |
+          alert_message=$(cat alert_message.txt)
+          # Send the message to Slack with proper escaping for newlines
+          curl -X POST -H "Content-type: application/json" \
+          --data "{\"text\": \"$(echo "$alert_message" | jq -R .)\"}" \
           ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
