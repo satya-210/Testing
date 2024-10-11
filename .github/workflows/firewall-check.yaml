@@ -52,16 +52,11 @@ jobs:
 
           # Iterate over each rule
           for rule in $(echo "$firewall_rules" | jq -r '.[] | @base64'); do
-              echo "Processing rule..."  # Debug line
               allowed_ip_ranges=$(_jq "$rule" '.sourceRanges[]' 2>/dev/null)
-              echo "Allowed IP ranges: $allowed_ip_ranges"  # Debug line
               if echo "$allowed_ip_ranges" | grep -q "0.0.0.0/0"; then
                   rule_name=$(_jq "$rule" '.name')
                   rule_description=$(_jq "$rule" '.description' 2>/dev/null || echo "(No description provided)")
                   allowed_ports=$(_jq "$rule" '.allowed[].ports[]' 2>/dev/null || echo "No ports defined")
-
-                  # Log rule details for debugging
-                  echo "Found public rule: $rule_name with open ports: $allowed_ports"  # Debug line
 
                   # Append rule details to the alert message
                   alert_message+="*Rule:* $rule_name\n"
@@ -79,16 +74,18 @@ jobs:
           else
               echo "Publicly open ports found."
               echo "insecure_rules=1" >> $GITHUB_ENV
-          fi  # Closing the if condition
+          fi
 
-          # Send the detailed alert message
-          echo "Alert message to be sent: $alert_message"
-          echo "$alert_message" > alert_message.txt  # Save the alert message for later steps
+          # Save the alert message for later steps
+          echo "$alert_message" > alert_message.txt
 
       - name: Send Slack Alert if insecure rules are found
         if: env.insecure_rules != '0'
         run: |
-          # Escape newlines and quotes in the alert message
-          sanitized_message=$(cat alert_message.txt | jq -Rs '.')
+          # Escape newlines and quotes in the alert message for JSON
+          sanitized_message=$(cat alert_message.txt | jq -Rs '. | gsub("\n"; "\\n") | gsub("\""; "\\\"")')
+          # Create the final JSON payload
+          json_payload="{\"text\": $sanitized_message}"
           # Send the alert to Slack
-          curl -X POST -H "Content-type: application/json" --data "{\"text\": $sanitized_message}" ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
+          echo "Sending the following message to Slack: $json_payload"  # Debug line
+          curl -X POST -H "Content-type: application/json" --data "$json_payload" ${{ secrets.SLACK_WEBHOOK_URL_SATYA }}
