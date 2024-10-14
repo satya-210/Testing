@@ -58,10 +58,10 @@ jobs:
                   rule_description=$(_jq "$rule" '.description' 2>/dev/null || echo "(No description provided)")
                   allowed_ports=$(_jq "$rule" '.allowed[].ports[]' 2>/dev/null || echo "No ports defined")
 
-                  # Append rule details to the alert message
+                  # Append rule details to the alert message with an extra newline for separation
                   alert_message+="*Rule:* $rule_name\n"
                   alert_message+="*Open Ports:* $allowed_ports\n"
-                  alert_message+="*Description:* $rule_description\n\n"
+                  alert_message+="*Description:* $rule_description\n\n---\n\n"
                   open_ports=1
               fi
           done
@@ -87,7 +87,7 @@ jobs:
           cat alert_message.txt
 
           # Escape newlines and quotes in the alert message for JSON
-          sanitized_message=$(cat alert_message.txt | jq -R -s . | jq 'gsub("\n"; "\\n") | gsub("\""; "\\\"")')
+          sanitized_message=$(cat alert_message.txt | jq -R -s . | jq 'gsub("\n"; "\\n")')
           
           # Create the final JSON payload
           json_payload="{\"text\": $sanitized_message}"
@@ -99,4 +99,3 @@ jobs:
           # Send the alert to Slack
           response=$(curl -X POST -H "Content-type: application/json" --data "$json_payload" ${{ secrets.SLACK_WEBHOOK_URL_SATYA }} -w "%{http_code}" -s -o /dev/null)
           echo "Response from Slack: $response"  # Debugging: Check response status
-
